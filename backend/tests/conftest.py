@@ -17,7 +17,7 @@ os.environ.update(
     ASR_PROVIDER="mock",
     LLM_PROVIDER="mock",
     VAD_BACKEND="energy",
-    DIARIZATION_BACKEND="none",
+    DIARIZATION_BACKEND="mock",
     SECRET_KEY="test-secret-key-test-secret-key-0123456789",
     BOOTSTRAP_ADMIN_EMAIL="",
     AUDIO_RETENTION_DAYS="90",

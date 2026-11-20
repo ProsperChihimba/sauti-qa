@@ -1,0 +1,102 @@
+{
+  "name": "Telecom Customer Care (Swahili)",
+  "description": "Default QA scorecard for Swahili inbound customer-care calls. Edit freely; every save creates a new version.",
+  "pass_threshold": 80,
+  "call_reasons": [
+    "Data bundle", "Airtime / balance", "M-Pesa transaction", "M-Pesa reversal", "SIM / PUK / SIM swap",
+    "Network / coverage", "Billing / charges", "Tariff / offer information", "Device / settings",
+    "Account / registration (NIDA)", "Complaint", "Prize / promotion enquiry", "Other"
+  ],
+  "criteria": [
+    {
+      "id": "greeting", "section": "Opening", "label": "Professional greeting with brand",
+      "description": "Agent greets the customer politely and mentions the company (e.g. Vodacom) at the start of the call.",
+      "examples": ["Habari za asubuhi, karibu Vodacom", "Karibu Vodacom", "Shikamoo, karibu Vodacom"],
+      "weight": 5, "critical": false, "allow_na": false
+    },
+    {
+      "id": "self_introduction", "section": "Opening", "label": "Agent introduces themself",
+      "description": "Agent states their name.",
+      "examples": ["naitwa Neema", "naitwa Baraka", "jina langu ni"],
+      "weight": 3, "critical": false, "allow_na": false
+    },
+    {
+      "id": "offer_help", "section": "Opening", "label": "Offers assistance",
+      "description": "Agent asks how they can help.",
+      "examples": ["Nikusaidie nini leo?", "nikusaidie vipi", "Naweza kukusaidia nini"],
+      "weight": 2, "critical": false, "allow_na": false
+    },
+    {
+      "id": "verification", "section": "Verification", "label": "Verifies customer identity",
+      "description": "Before discussing or changing account details, the agent verifies identity using approved questions (full name, date of birth, last transactions, NIDA). Never asks for PIN or password.",
+      "examples": ["Kwa usalama, naomba unithibitishie", "naomba majina yako kamili", "tarehe yako ya kuzaliwa"],
+      "weight": 10, "critical": false, "allow_na": true,
+      "na_guidance": "N/A only when the call needs no account access (general information enquiry)."
+    },
+    {
+      "id": "no_confidential_request", "section": "Compliance", "label": "Never asks for PIN, password or OTP",
+      "description": "The agent must never ask the customer for their M-Pesa PIN, password, OTP or other secret. Any request is a critical breach and possible fraud.",
+      "examples": [],
+      "negative_examples": ["PIN yako", "namba ya siri", "nenosiri lako", "OTP", "nywila yako"],
+      "weight": 10, "critical": true, "allow_na": false
+    },
+    {
+      "id": "probing", "section": "Needs analysis", "label": "Asks relevant questions",
+      "description": "Agent asks the questions needed to understand the problem before acting.",
+      "examples": ["Naomba namba uliyotuma kwayo", "tatizo lilianza lini", "muda wa muamala", "Naomba majina yako kamili na namba"],
+      "weight": 8, "critical": false, "allow_na": false
+    },
+    {
+      "id": "empathy", "section": "Communication", "label": "Shows empathy",
+      "description": "Agent acknowledges the customer's problem or feelings.",
+      "examples": ["Pole sana kwa usumbufu", "Naelewa hasira yako", "Pole kwa hilo", "Samahani kwa usumbufu"],
+      "weight": 8, "critical": false, "allow_na": false
+    },
+    {
+      "id": "accurate_information", "section": "Resolution", "label": "Gives correct, confident information",
+      "description": "Information given is correct and complete; the agent does not guess, mislead or make promises that cannot be kept. Wrong information is a critical breach.",
+      "examples": [],
+      "negative_examples": ["sijui, labda", "Aah sijui", "utapokea zawadi yako baadaye"],
+      "weight": 12, "critical": true, "allow_na": false
+    },
+    {
+      "id": "resolution", "section": "Resolution", "label": "Resolves or gives clear next steps",
+      "description": "Agent resolves the issue on the call, or explains exactly what will happen next and when.",
+      "examples": ["Nimelirekebisha sasa hivi", "litashughulikiwa ndani ya saa ishirini na nne", "nimefungua ombi"],
+      "weight": 12, "critical": false, "allow_na": false
+    },
+    {
+      "id": "hold_etiquette", "section": "Communication", "label": "Hold / transfer etiquette",
+      "description": "Asks before putting on hold or transferring, and thanks the customer for waiting.",
+      "examples": ["tafadhali subiri kidogo", "Samahani kwa kukusubirisha", "Asante kwa uvumilivu wako"],
+      "weight": 4, "critical": false, "allow_na": true,
+      "na_guidance": "N/A when the customer was never put on hold or transferred."
+    },
+    {
+      "id": "professional_language", "section": "Communication", "label": "Polite, professional language",
+      "description": "Polite tone and words throughout; no rudeness, dismissiveness or slang towards the customer.",
+      "examples": [],
+      "negative_examples": ["Ndiyo, sema", "nimesema mara ngapi", "sina muda"],
+      "weight": 8, "critical": false, "allow_na": false
+    },
+    {
+      "id": "escalation_handling", "section": "Resolution", "label": "Handles escalation requests correctly",
+      "description": "When the customer asks for a supervisor or the issue needs escalation, the agent escalates or explains the process.",
+      "examples": ["Nitakuunganisha na supervisor", "nakuunganisha sasa", "nitapeleka kwa idara husika"],
+      "weight": 5, "critical": false, "allow_na": true,
+      "na_guidance": "N/A when no escalation was requested or needed."
+    },
+    {
+      "id": "further_assistance", "section": "Closing", "label": "Offers further assistance",
+      "description": "Before closing, the agent asks whether there is anything else.",
+      "examples": ["Kuna kingine chochote naweza kukusaidia", "Kitu kingine chochote?"],
+      "weight": 3, "critical": false, "allow_na": false
+    },
+    {
+      "id": "closing", "section": "Closing", "label": "Professional closing",
+      "description": "Thanks the customer and closes with the brand.",
+      "examples": ["Asante kwa kupiga simu Vodacom", "uwe na siku njema", "Asante kwa kuchagua Vodacom"],
+      "weight": 4, "critical": false, "allow_na": false
+    }
+  ]
+}

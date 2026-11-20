@@ -72,7 +72,7 @@ class Settings(BaseSettings):
     hf_cache_dir: Path | None = None  # point at pre-downloaded models for offline use
 
     # Diarization
-    diarization_backend: Literal["pyannote", "none"] = "pyannote"
+    diarization_backend: Literal["pyannote", "mock", "none"] = "pyannote"
     pyannote_model: str = "pyannote/speaker-diarization-3.1"
     hf_token: str | None = None  # only needed to download gated pyannote weights once
 
@@ -86,6 +86,9 @@ class Settings(BaseSettings):
     llm_max_tokens: int = 8000
     llm_timeout_seconds: float = 180.0
     llm_speaker_identification: bool = True
+    llm_effort: Literal["low", "medium", "high", "xhigh", "max"] | None = None  # Anthropic only; None = model default
+    anthropic_fallbacks: str = "default"  # server-side refusal fallback; "" disables
+    llm_json_mode: Literal["auto", "json_schema", "json_object", "none"] = "auto"  # OpenAI-compatible servers
 
     # Review routing defaults (overridable in app_settings)
     review_score_threshold: float = 80.0
