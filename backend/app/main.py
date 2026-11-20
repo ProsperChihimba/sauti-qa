@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select, text
 
-from app.api.routes import auth, calls, ingest, ops, users
+from app.api.routes import auth, calls, dashboard, exports, ingest, ops, review, scorecards, users
 from app.config import get_settings
 from app.db import SessionLocal
 
@@ -45,7 +45,8 @@ def create_app() -> FastAPI:
                   docs_url="/api/docs", openapi_url="/api/openapi.json")
     app.add_middleware(CORSMiddleware, allow_origins=s.cors_origins, allow_credentials=True,
                        allow_methods=["*"], allow_headers=["*"])
-    for r in (auth.router, users.router, ingest.router, calls.router, ops.router):
+    for r in (auth.router, users.router, ingest.router, calls.router, review.router, scorecards.router,
+              dashboard.router, exports.router, ops.router):
         app.include_router(r, prefix="/api")
 
     @app.get("/api/health", tags=["ops"])

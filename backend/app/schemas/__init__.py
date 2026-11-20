@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+
+# Internal domains (e.g. .local, .lan) are common on-prem, so only the basic shape is checked.
+EmailStr = Annotated[str, StringConstraints(strip_whitespace=True, to_lower=True, max_length=255,
+                                            pattern=r"^[^@\s]+@[^@\s]+\.?[^@\s]*$")]
 
 
 class ORM(BaseModel):

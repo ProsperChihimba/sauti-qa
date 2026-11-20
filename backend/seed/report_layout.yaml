@@ -1,0 +1,74 @@
+# Excel report layout.
+#
+# Change this file (or point REPORT_LAYOUT_PATH at your own copy) to match the
+# client's QA report without touching code:
+#   - rename / reorder / remove sheets and columns
+#   - set `template:` to an existing .xlsx; sheets are then filled in place
+#     starting at `start_row` (headers are written only if `write_headers: true`)
+#
+# Column `field` names come from the report data (see app/services/reports.py,
+# FIELDS_* docstrings). Unknown fields are left blank.
+
+title: "Call Quality Assurance Report"
+template: null
+
+sheets:
+  - name: Summary
+    kind: summary          # key / value KPI block + breakdown tables
+
+  - name: Agents
+    kind: table
+    source: agents
+    start_row: 1
+    write_headers: true
+    columns:
+      - {header: "Agent", field: agent, width: 26}
+      - {header: "Calls", field: calls, width: 9}
+      - {header: "Minutes", field: minutes, width: 10, format: "0.0"}
+      - {header: "Average score %", field: avg_score, width: 15, format: "0.0"}
+      - {header: "Pass rate %", field: pass_rate, width: 12, format: "0.0"}
+      - {header: "Critical breaches", field: critical_breaches, width: 16}
+
+  - name: Criteria
+    kind: table
+    source: criteria
+    start_row: 1
+    write_headers: true
+    columns:
+      - {header: "Section", field: section, width: 18}
+      - {header: "Criterion", field: label, width: 40}
+      - {header: "Critical", field: critical_text, width: 9}
+      - {header: "Met", field: yes, width: 8}
+      - {header: "Not met", field: no, width: 9}
+      - {header: "N/A", field: na, width: 7}
+      - {header: "Met %", field: pass_rate, width: 9, format: "0.0"}
+      - {header: "Overridden by analysts", field: overridden, width: 20}
+
+  - name: Details
+    kind: table
+    source: calls
+    start_row: 1
+    write_headers: true
+    criteria_columns: true   # append one Y / N / N/A column per scorecard criterion
+    columns:
+      - {header: "Call ID", field: external_id, width: 18}
+      - {header: "Date / time (EAT)", field: call_time, width: 18, format: "yyyy-mm-dd hh:mm"}
+      - {header: "Agent", field: agent, width: 22}
+      - {header: "Queue", field: queue, width: 14}
+      - {header: "Duration (min)", field: duration_min, width: 13, format: "0.0"}
+      - {header: "Score %", field: score, width: 9, format: "0.0"}
+      - {header: "Result", field: result, width: 11}
+      - {header: "Failed items", field: failed_items, width: 40, wrap: true}
+      - {header: "Critical failures", field: critical_failures, width: 28, wrap: true}
+      - {header: "Call reason", field: call_reason, width: 22}
+      - {header: "Resolution", field: resolution, width: 16}
+      - {header: "Customer sentiment", field: sentiment, width: 16}
+      - {header: "Flags", field: flags, width: 26, wrap: true}
+      - {header: "Muhtasari (Kiswahili)", field: summary_sw, width: 55, wrap: true}
+      - {header: "Summary (English)", field: summary_en, width: 55, wrap: true}
+      - {header: "Review status", field: review_status, width: 14}
+      - {header: "Reviewed by", field: reviewer, width: 18}
+      - {header: "Reviewer notes", field: reviewer_notes, width: 50, wrap: true}
+      - {header: "Overridden items", field: overridden_items, width: 30, wrap: true}
+      - {header: "Scorecard", field: scorecard, width: 24}
+      - {header: "Link", field: link, width: 40}
