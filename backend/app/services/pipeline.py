@@ -55,7 +55,7 @@ def prepare(db: Session, call: Call, heartbeat) -> None:
             raise PermanentError("Audio has no channels")
         wav = audio_mod.normalise(src, Path(tmp) / "processed.wav")
         mp3 = audio_mod.playback_mp3(wav, Path(tmp) / "playback.mp3")
-        mono = audio_mod.load_pcm(wav)
+        mono = audio_mod.load_pcm(wav, normalize=True)
         heartbeat()
         duration = len(mono) / get_settings().target_sample_rate
         if duration < 0.5:
@@ -87,7 +87,7 @@ def _transcribe_audio(db: Session, call: Call, wav: Path, heartbeat) -> tuple[li
         segs: list[ASRSegment] = []
         for ch in (0, 1):
             role = Speaker.agent if ch == agent_ch else Speaker.customer
-            audio = audio_mod.load_pcm(wav, channel=ch)
+            audio = audio_mod.load_pcm(wav, channel=ch, normalize=True)
             regions = detect_speech(audio, max_len=asr.max_region_seconds)
             ctx.role = str(role)
             for s in asr.transcribe(audio, regions, ctx, sr):
@@ -96,7 +96,7 @@ def _transcribe_audio(db: Session, call: Call, wav: Path, heartbeat) -> tuple[li
             heartbeat()
         return sorted(segs, key=lambda s: (s.start, s.end)), "stereo"
 
-    audio = audio_mod.load_pcm(wav)
+    audio = audio_mod.load_pcm(wav, normalize=True)
     regions = detect_speech(audio, max_len=asr.max_region_seconds)
     segs = asr.transcribe(audio, regions, ctx, sr)
     heartbeat()

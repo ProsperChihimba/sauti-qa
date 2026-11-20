@@ -74,7 +74,7 @@ def run_model(spec: str, items, channel: int | None, use_vad: bool):
     refs, hyps, per_file = [], [], []
     audio_s = proc_s = 0.0
     for path, ref in items:
-        audio = load_pcm(path, channel=channel)
+        audio = load_pcm(path, channel=channel, normalize=True)
         dur = len(audio) / 16000
         t = time.perf_counter()
         regions = detect_speech(audio, max_len=provider.max_region_seconds) if use_vad else [(0.0, dur)]
