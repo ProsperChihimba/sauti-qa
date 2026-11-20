@@ -145,8 +145,8 @@ The second call returns processing status, score, pass/fail and review status. I
 
 | Provider | Model | When to use |
 |---|---|---|
-| `openchs` | `openchs/asr-whisper-largev2-v6` | **Start here.** Whisper large-v2 fine-tuned on real Tanzanian helpline phone calls: telephony audio, Tanzanian Swahili |
-| `buzzasr` | `BuzzASR/swahili` | Whisper large-v3 fine-tuned for Swahili; compare against openchs |
+| `buzzasr` | `BuzzASR/swahili` | **Start here.** Whisper large-v3 fine-tuned for Swahili, openly downloadable. Best result in our phone-quality test (see `docs/real-test-2026-11.md`). Has no timestamp tokens, so each speech region becomes one transcript line |
+| `openchs` | `openchs/asr-whisper-largev2-v6` | Whisper large-v2 adapted to Tanzanian helpline phone calls. **Gated**: request access on its Hugging Face page. Its card reports 44% WER on real helpline audio; benchmark it against BuzzASR on your own calls once you have access |
 | `faster_whisper` | `large-v3` (or `ASR_MODEL=/path/to/ct2-model`) | Fastest on GPU, word timestamps. Fine-tuned checkpoints can be converted with `ct2-transformers-converter --model openchs/asr-whisper-largev2-v6 --output_dir /models/openchs-ct2 --quantization float16` |
 | `hf_whisper` | `ASR_MODEL=<repo or folder>` | Your own fine-tuned model (see below) |
 | `openai` | any OpenAI-compatible `/audio/transcriptions` | Cloud or a self-hosted compatible server. **Sends audio off the server: only with written client approval** when pointed at a cloud endpoint |
@@ -156,10 +156,10 @@ The second call returns processing status, score, pass/fail and review status. I
 
 ```bash
 docker compose -f deploy/docker-compose.yml --profile gpu run --rm -v $PWD/bench:/bench gpu-worker \
-  python scripts/benchmark_asr.py --data /bench --models openchs,buzzasr,faster_whisper:large-v3 --out /bench/results.json
+  python scripts/benchmark_asr.py --data /bench --models buzzasr,faster_whisper:large-v3 --out /bench/results.json
 ```
 
-It reports WER, CER and real-time factor per model after Swahili-aware normalisation (lowercase, punctuation, hesitation fillers, digits spoken as Swahili words so "10,000" equals "elfu kumi", redaction tags removed). Use `--channel left` to score only the agent side of stereo files. References can also come from a JSONL/CSV manifest (`--manifest`).
+Real results on phone-quality Swahili are in `docs/real-test-2026-11.md`. It reports WER, CER and real-time factor per model after Swahili-aware normalisation (lowercase, punctuation, hesitation fillers, digits spoken as Swahili words so "10,000" equals "elfu kumi", redaction tags removed). Use `--channel left` to score only the agent side of stereo files. References can also come from a JSONL/CSV manifest (`--manifest`).
 
 ### LLM scoring (`LLM_PROVIDER`)
 
@@ -175,15 +175,15 @@ Recommended approach: score a few hundred calls with Claude, have analysts revie
 
 ## Going fully on-prem / offline
 
-1. Choose `ASR_PROVIDER` from `openchs`, `buzzasr`, `faster_whisper` or `hf_whisper`; `LLM_PROVIDER=openai` pointed at an internal vLLM/Ollama server; `STORAGE_BACKEND=s3` (MinIO in the stack).
+1. Choose `ASR_PROVIDER` from `buzzasr`, `openchs`, `faster_whisper` or `hf_whisper`; `LLM_PROVIDER=openai` pointed at an internal vLLM/Ollama server; `STORAGE_BACKEND=s3` (MinIO in the stack).
 2. Download the weights once, with internet access, into the `models` volume:
 
 ```bash
 docker compose -f deploy/docker-compose.yml --env-file .env --profile gpu run --rm gpu-worker \
-  python scripts/download_models.py --asr openchs buzzasr faster_whisper --pyannote --silero
+  python scripts/download_models.py --asr buzzasr faster_whisper --pyannote --silero
 ```
 
-   pyannote weights are gated: accept the terms of `pyannote/speaker-diarization-3.1` (and `pyannote/segmentation-3.0`) on huggingface.co and set `HF_TOKEN` for this step only.
+   Only the model files at the root of each repository are downloaded (some repositories also hold full training checkpoints). The openchs model is gated: request access first. pyannote weights are gated too: accept the terms of `pyannote/speaker-diarization-3.1` (and `pyannote/segmentation-3.0`) on huggingface.co and set `HF_TOKEN` for this step only.
 3. Set `HF_HUB_OFFLINE=1`, remove `HF_TOKEN`, restart. The UI uses system fonts and no external assets; Next.js telemetry is disabled in the image.
 4. To move to an air-gapped server: build the images, then `docker save` them and copy the `models` volume.
 5. Block outbound internet for the stack at the firewall and confirm `/api/ready` reports your local providers.
@@ -246,7 +246,7 @@ Every transcript correction is training data. Reports & exports → **Speech dat
 ```bash
 pip install -e ".[gpu,train]"
 python scripts/finetune_whisper.py --data ./asr-dataset --out /models/sauti-whisper \
-  --base openchs/asr-whisper-largev2-v6 --lora --epochs 3
+  --base BuzzASR/swahili --lora --epochs 3
 ```
 
 The script reports WER/CER before and after (same normaliser as the benchmark), and with `--lora` writes a merged model to `<out>/merged`. Benchmark it against the current model, then switch with `ASR_PROVIDER=hf_whisper` and `ASR_MODEL=/models/sauti-whisper/merged`. A few hundred minutes of corrected audio typically gives a noticeable gain on in-domain vocabulary (product names, bundle names, M-Pesa terms); keep a fixed benchmark set to measure each round.
