@@ -33,7 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import jiwer  # noqa: E402
 
-from app.services.asr import ASRContext, build_provider  # noqa: E402
+from app.services.asr import ASRContext, build_provider, filter_hallucinations  # noqa: E402
 from app.services.audio import load_pcm  # noqa: E402
 from app.services.audio.vad import detect_speech  # noqa: E402
 from app.services.textnorm import normalize_sw  # noqa: E402
@@ -66,7 +66,7 @@ def load_items(args) -> list[tuple[Path, str]]:
     return items
 
 
-def run_model(spec: str, items, channel: int | None, use_vad: bool):
+def run_model(spec: str, items, channel: int | None, use_vad: bool, filter_low_confidence: bool = True):
     name, _, model = spec.partition(":")
     t0 = time.perf_counter()
     provider = build_provider(name, model or None)
@@ -74,14 +74,16 @@ def run_model(spec: str, items, channel: int | None, use_vad: bool):
     refs, hyps, per_file = [], [], []
     audio_s = proc_s = 0.0
     for path, ref in items:
-        audio = load_pcm(path, channel=channel)
+        audio = load_pcm(path, channel=channel, normalize=True)
         dur = len(audio) / 16000
         t = time.perf_counter()
-        regions = detect_speech(audio) if use_vad else [(0.0, dur)]
+        regions = detect_speech(audio, max_len=provider.max_region_seconds) if use_vad else [(0.0, dur)]
         if not use_vad:
             # Whisper windows are 30 s: chunk long files.
             regions = [(a, min(dur, a + 28.0)) for a in [i * 28.0 for i in range(int(dur // 28) + 1)] if a < dur]
         segs = provider.transcribe(audio, regions, ASRContext(call_id=path.stem, duration=dur))
+        if filter_low_confidence:
+            segs, _ = filter_hallucinations(segs)
         elapsed = time.perf_counter() - t
         hyp = " ".join(s.text for s in segs)
         r, h = normalize_sw(ref), normalize_sw(hyp)
@@ -114,6 +116,7 @@ def main() -> None:
                     help="for stereo recordings: score one channel only (e.g. the agent)")
     ap.add_argument("--no-vad", action="store_true", help="transcribe whole files in 28 s windows")
     ap.add_argument("--limit", type=int)
+    ap.add_argument("--no-filter", action="store_true", help="keep low-confidence (likely hallucinated) segments")
     ap.add_argument("--out", help="write full results (incl. per-file hypotheses) to this JSON file")
     args = ap.parse_args()
 
@@ -123,7 +126,7 @@ def main() -> None:
     for spec in [m.strip() for m in args.models.split(",") if m.strip()]:
         print(f"> {spec} on {len(items)} files ...", flush=True)
         try:
-            results.append(run_model(spec, items, channel, not args.no_vad))
+            results.append(run_model(spec, items, channel, not args.no_vad, not args.no_filter))
         except Exception as exc:  # noqa: BLE001 - report and continue with the next model
             print(f"  failed: {type(exc).__name__}: {exc}")
             results.append({"model": spec, "error": str(exc)})

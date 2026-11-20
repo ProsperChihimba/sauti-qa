@@ -22,7 +22,7 @@ from app.models import Call, Segment
 from app.models.enums import Speaker
 from app.services import audio as audio_mod
 from app.services.app_settings import get_runtime_settings
-from app.services.asr import ASRContext, ASRSegment, get_asr
+from app.services.asr import ASRContext, ASRSegment, filter_hallucinations, get_asr
 from app.services.audio.vad import detect_speech
 from app.services.redaction import redact, redact_words
 from app.services.speakers import assign_speakers, get_diarizer, heuristic_agent
@@ -55,7 +55,7 @@ def prepare(db: Session, call: Call, heartbeat) -> None:
             raise PermanentError("Audio has no channels")
         wav = audio_mod.normalise(src, Path(tmp) / "processed.wav")
         mp3 = audio_mod.playback_mp3(wav, Path(tmp) / "playback.mp3")
-        mono = audio_mod.load_pcm(wav)
+        mono = audio_mod.load_pcm(wav, normalize=True)
         heartbeat()
         duration = len(mono) / get_settings().target_sample_rate
         if duration < 0.5:
@@ -87,8 +87,8 @@ def _transcribe_audio(db: Session, call: Call, wav: Path, heartbeat) -> tuple[li
         segs: list[ASRSegment] = []
         for ch in (0, 1):
             role = Speaker.agent if ch == agent_ch else Speaker.customer
-            audio = audio_mod.load_pcm(wav, channel=ch)
-            regions = detect_speech(audio)
+            audio = audio_mod.load_pcm(wav, channel=ch, normalize=True)
+            regions = detect_speech(audio, max_len=asr.max_region_seconds)
             ctx.role = str(role)
             for s in asr.transcribe(audio, regions, ctx, sr):
                 s.speaker_raw = f"channel_{'left' if ch == 0 else 'right'}:{role}"
@@ -96,8 +96,8 @@ def _transcribe_audio(db: Session, call: Call, wav: Path, heartbeat) -> tuple[li
             heartbeat()
         return sorted(segs, key=lambda s: (s.start, s.end)), "stereo"
 
-    audio = audio_mod.load_pcm(wav)
-    regions = [tuple(r) for r in (call.speech_regions or [])] or detect_speech(audio)
+    audio = audio_mod.load_pcm(wav, normalize=True)
+    regions = detect_speech(audio, max_len=asr.max_region_seconds)
     segs = asr.transcribe(audio, regions, ctx, sr)
     heartbeat()
     diarizer = get_diarizer()
@@ -118,6 +118,10 @@ def transcribe(db: Session, call: Call, heartbeat) -> None:
     with _tmpdir() as tmp:
         wav = _fetch(call.audio_processed_key, tmp, "processed.wav")
         segs, method = _transcribe_audio(db, call, wav, heartbeat)
+        segs, dropped = filter_hallucinations(segs)
+        # Keep only where and how sure, never the dropped text (it may contain PII).
+        call.meta = {**(call.meta or {}), "asr_dropped": [
+            {"start": d.start, "end": d.end, "confidence": d.confidence} for d in dropped]}
 
         db.execute(delete(Segment).where(Segment.call_id == call.id))
         idx = 0

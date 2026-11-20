@@ -67,6 +67,12 @@ class Settings(BaseSettings):
     asr_compute_type: str = "float16"
     asr_language: str = "sw"
     asr_batch_size: int = 8
+    # Whisper invents text on noise and silence ("hallucination"); such segments come
+    # back with very low confidence. Drop segments below asr_min_confidence, or below
+    # asr_short_min_confidence when shorter than asr_short_seconds. 0 disables.
+    asr_min_confidence: float = 0.35
+    asr_short_min_confidence: float = 0.45
+    asr_short_seconds: float = 2.0
     asr_openai_base_url: str | None = None
     asr_openai_api_key: str | None = None
     hf_cache_dir: Path | None = None  # point at pre-downloaded models for offline use

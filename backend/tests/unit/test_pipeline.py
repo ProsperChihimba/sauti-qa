@@ -75,3 +75,20 @@ def test_llm_speaker_identification_used_when_available(admin_client, tmp_path, 
     cid = _upload(admin_client, make_wav(tmp_path / "g.wav", seconds=10), mock_variant="good")
     c = admin_client.get(f"/api/calls/{cid}").json()
     assert c["speaker_method"] == "llm" and c["segments"][0]["speaker"] == "agent"
+
+
+def test_vad_regions_respect_model_window():
+    """Models without timestamp tokens get shorter regions, one transcript line each."""
+    from app.services.audio.vad import merge_regions
+
+    regions = merge_regions([(0.0, 40.0)], duration=40.0, max_len=12.0)
+    assert all(b - a <= 12.0 for a, b in regions)
+    assert regions[0][0] == 0.0 and regions[-1][1] == 40.0
+
+
+def test_asr_presets_carry_model_card_options():
+    from app.services.asr import PRESET_OPTIONS, PRESETS
+
+    assert PRESETS["buzzasr"] == "BuzzASR/swahili"
+    assert PRESET_OPTIONS["buzzasr"]["language"] is None  # language is baked into its generation config
+    assert PRESET_OPTIONS["buzzasr"]["generate_kwargs"]["no_repeat_ngram_size"] == 3

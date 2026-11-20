@@ -82,11 +82,11 @@ def silero_vad(audio: np.ndarray, sr: int = 16000) -> list[Region]:
     return [(float(t["start"]), float(t["end"])) for t in ts]
 
 
-def detect_speech(audio: np.ndarray, sr: int = 16000) -> list[Region]:
+def detect_speech(audio: np.ndarray, sr: int = 16000, max_len: float = 28.0) -> list[Region]:
     backend = get_settings().vad_backend
     duration = len(audio) / sr
     if backend == "none":
-        return [(0.0, duration)] if duration > 0 else []
+        return merge_regions([(0.0, duration)], duration=duration, max_len=max_len) if duration > 0 else []
     raw: list[Region]
     if backend == "silero":
         try:
@@ -96,4 +96,4 @@ def detect_speech(audio: np.ndarray, sr: int = 16000) -> list[Region]:
             raw = energy_vad(audio, sr)
     else:
         raw = energy_vad(audio, sr)
-    return merge_regions(raw, duration=duration)
+    return merge_regions(raw, duration=duration, max_len=max_len)

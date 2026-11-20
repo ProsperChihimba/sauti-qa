@@ -66,17 +66,41 @@ def playback_mp3(src: Path, dest: Path, mute_spans: list[tuple[float, float]] | 
     """Mono MP3 for the browser. Optional muting of spoken PII spans."""
     s = get_settings()
     cmd = [s.ffmpeg_bin, "-y", "-loglevel", "error", "-i", str(src), "-vn", "-ac", "1", "-ar", "22050"]
+    # Even out loudness so quiet calls are audible for reviewers.
+    filters = ["loudnorm=I=-18:TP=-2:LRA=11"]
     if mute_spans:
         expr = "+".join(f"between(t,{a:.3f},{b:.3f})" for a, b in mute_spans)
-        cmd += ["-af", f"volume=enable='{expr}':volume=0"]
-    cmd += ["-c:a", "libmp3lame", "-b:a", "48k", str(dest)]
+        filters.append(f"volume=enable='{expr}':volume=0")
+    cmd += ["-af", ",".join(filters)]
+    cmd += ["-ar", "22050", "-c:a", "libmp3lame", "-b:a", "48k", str(dest)]
     _run(cmd)
     return dest
 
 
-def load_pcm(path: Path, *, channel: int | None = None, sr: int | None = None) -> np.ndarray:
+MAX_GAIN_DB = 45.0
+
+
+def normalize_gain(audio: np.ndarray, target_peak: float = 0.5) -> np.ndarray:
+    """Bring quiet recordings to a usable level before VAD and ASR.
+
+    Recorders often deliver very quiet calls (-50 dBFS and below); VAD then finds
+    no speech and the call is silently lost. The 99.9th percentile is used as the
+    peak so a single click does not block the gain, and the gain is capped so a
+    silent channel is not blown up into noise."""
+    if audio.size == 0:
+        return audio
+    peak = float(np.percentile(np.abs(audio), 99.9))
+    if peak < 1e-6:
+        return audio
+    gain = min(target_peak / peak, 10 ** (MAX_GAIN_DB / 20))
+    if gain <= 1.0:
+        return audio
+    return np.clip(audio * gain, -1.0, 1.0).astype(np.float32)
+
+
+def load_pcm(path: Path, *, channel: int | None = None, sr: int | None = None, normalize: bool = False) -> np.ndarray:
     """Decode to float32 mono at `sr` (default 16 kHz). channel=None mixes down;
-    channel=0/1 selects left/right."""
+    channel=0/1 selects left/right. normalize=True applies normalize_gain."""
     s = get_settings()
     sr = sr or s.target_sample_rate
     cmd = [s.ffmpeg_bin, "-loglevel", "error", "-i", str(path)]
@@ -86,7 +110,8 @@ def load_pcm(path: Path, *, channel: int | None = None, sr: int | None = None) -
         cmd += ["-ac", "1"]
     cmd += ["-ar", str(sr), "-f", "f32le", "-"]
     p = _run(cmd)
-    return np.frombuffer(p.stdout, dtype=np.float32).copy()
+    audio = np.frombuffer(p.stdout, dtype=np.float32).copy()
+    return normalize_gain(audio) if normalize else audio
 
 
 def write_wav(path: Path, audio: np.ndarray, sr: int = 16000) -> Path:

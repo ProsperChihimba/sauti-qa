@@ -40,6 +40,9 @@ class ASRContext:
 class ASRProvider(ABC):
     name: str = "base"
     model_id: str = ""
+    # Longest speech region sent in one piece (Whisper's window is 30 s; models
+    # without timestamps use shorter regions so each becomes a short transcript line).
+    max_region_seconds: float = 28.0
 
     @abstractmethod
     def transcribe(self, audio: np.ndarray, regions: list[Region], ctx: ASRContext, sr: int = 16000
