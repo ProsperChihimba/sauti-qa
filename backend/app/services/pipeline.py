@@ -88,7 +88,7 @@ def _transcribe_audio(db: Session, call: Call, wav: Path, heartbeat) -> tuple[li
         for ch in (0, 1):
             role = Speaker.agent if ch == agent_ch else Speaker.customer
             audio = audio_mod.load_pcm(wav, channel=ch)
-            regions = detect_speech(audio)
+            regions = detect_speech(audio, max_len=asr.max_region_seconds)
             ctx.role = str(role)
             for s in asr.transcribe(audio, regions, ctx, sr):
                 s.speaker_raw = f"channel_{'left' if ch == 0 else 'right'}:{role}"
@@ -97,7 +97,7 @@ def _transcribe_audio(db: Session, call: Call, wav: Path, heartbeat) -> tuple[li
         return sorted(segs, key=lambda s: (s.start, s.end)), "stereo"
 
     audio = audio_mod.load_pcm(wav)
-    regions = [tuple(r) for r in (call.speech_regions or [])] or detect_speech(audio)
+    regions = detect_speech(audio, max_len=asr.max_region_seconds)
     segs = asr.transcribe(audio, regions, ctx, sr)
     heartbeat()
     diarizer = get_diarizer()

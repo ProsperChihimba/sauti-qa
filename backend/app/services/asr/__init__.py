@@ -11,6 +11,11 @@ PRESETS = {
     "openchs": "openchs/asr-whisper-largev2-v6",
     "buzzasr": "BuzzASR/swahili",
 }
+# Decoding options per preset, from each model card. BuzzASR bakes the language into
+# its generation config and recommends repetition guards.
+PRESET_OPTIONS: dict[str, dict] = {
+    "buzzasr": {"language": None, "generate_kwargs": {"no_repeat_ngram_size": 3, "repetition_penalty": 1.2}},
+}
 
 
 def build_provider(name: str, model: str | None = None) -> ASRProvider:
@@ -24,7 +29,7 @@ def build_provider(name: str, model: str | None = None) -> ASRProvider:
         model_id = model or PRESETS.get(name)
         if not model_id:
             raise ValueError("ASR_MODEL must be set for ASR_PROVIDER=hf_whisper")
-        p = HFWhisperASR(model_id)
+        p = HFWhisperASR(model_id, **PRESET_OPTIONS.get(name, {}))
         p.name = name
         return p
     if name == "faster_whisper":

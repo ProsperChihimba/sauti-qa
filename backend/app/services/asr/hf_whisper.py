@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 class HFWhisperASR(ASRProvider):
     name = "hf_whisper"
 
-    def __init__(self, model_id: str):
+    def __init__(self, model_id: str, generate_kwargs: dict | None = None, language: str | None = "default"):
         import torch
         from transformers import WhisperForConditionalGeneration, WhisperProcessor
 
@@ -34,15 +34,26 @@ class HFWhisperASR(ASRProvider):
         self.processor = WhisperProcessor.from_pretrained(model_id, cache_dir=cache)
         self.model = WhisperForConditionalGeneration.from_pretrained(model_id, torch_dtype=self.dtype, cache_dir=cache)
         self.model.to(self.device).eval()
-        self.language = s.asr_language
+        self.language = s.asr_language if language == "default" else language
         self.batch_size = s.asr_batch_size
-        log.info("loaded %s on %s", model_id, self.device)
+        self.generate_kwargs = generate_kwargs or {}
+        # Some fine-tunes (e.g. BuzzASR, which replaced the tokenizer) have no timestamp
+        # tokens. Then each VAD speech region becomes one transcript line.
+        self.timestamps = getattr(self.model.generation_config, "no_timestamps_token_id", None) is not None
+        log.info("loaded %s on %s (timestamps: %s)", model_id, self.device, self.timestamps)
+
+    @property
+    def max_region_seconds(self) -> float:
+        return 28.0 if self.timestamps else 12.0
 
     def _generate(self, feats):
         import torch
 
-        kwargs = dict(return_timestamps=True, return_dict_in_generate=True, output_scores=True, max_new_tokens=440)
+        kwargs = dict(return_timestamps=self.timestamps, return_dict_in_generate=True, output_scores=True,
+                      max_new_tokens=440, **self.generate_kwargs)
         with torch.inference_mode():
+            if not self.language:
+                return self.model.generate(feats, **kwargs)
             try:
                 return self.model.generate(feats, language=self.language, task="transcribe", **kwargs)
             except (ValueError, KeyError):
@@ -63,10 +74,14 @@ class HFWhisperASR(ASRProvider):
                 lp = scores[i].float().cpu().numpy()
                 lp = lp[np.isfinite(lp) & (lp < 0)]
                 conf = float(math.exp(lp.mean())) if lp.size else None
-                decoded = tok.decode(seq, skip_special_tokens=True, output_offsets=True)
-                offsets = decoded.get("offsets") or []
-                if not offsets and decoded.get("text", "").strip():
-                    offsets = [{"text": decoded["text"], "timestamp": (0.0, region[1] - region[0])}]
+                if self.timestamps:
+                    decoded = tok.decode(seq, skip_special_tokens=True, output_offsets=True)
+                    offsets = decoded.get("offsets") or []
+                    text = decoded.get("text", "")
+                else:
+                    offsets, text = [], tok.decode(seq, skip_special_tokens=True)
+                if not offsets and text.strip():
+                    offsets = [{"text": text, "timestamp": (0.0, region[1] - region[0])}]
                 for o in offsets:
                     text = o["text"].strip()
                     if not text:

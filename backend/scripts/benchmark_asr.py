@@ -77,7 +77,7 @@ def run_model(spec: str, items, channel: int | None, use_vad: bool):
         audio = load_pcm(path, channel=channel)
         dur = len(audio) / 16000
         t = time.perf_counter()
-        regions = detect_speech(audio) if use_vad else [(0.0, dur)]
+        regions = detect_speech(audio, max_len=provider.max_region_seconds) if use_vad else [(0.0, dur)]
         if not use_vad:
             # Whisper windows are 30 s: chunk long files.
             regions = [(a, min(dur, a + 28.0)) for a in [i * 28.0 for i in range(int(dur // 28) + 1)] if a < dur]

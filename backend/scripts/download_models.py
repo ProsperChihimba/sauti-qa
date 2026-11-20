@@ -39,7 +39,12 @@ def main() -> None:
             print("faster-whisper", size, "->", download_model(size, cache_dir=cache))
             continue
         repo = PRESETS.get(name, name)
-        print(repo, "->", snapshot_download(repo, cache_dir=cache))
+        # Only the files transformers loads: some repos (e.g. openchs) also ship full
+        # training checkpoints in sub-folders, which would triple the download.
+        path = snapshot_download(repo, cache_dir=cache,
+                                 allow_patterns=["*.json", "*.txt", "*.model", "*.safetensors", "*.tiktoken"],
+                                 ignore_patterns=["*/*"])
+        print(repo, "->", path)
     if args.pyannote:
         from pyannote.audio import Pipeline
 
