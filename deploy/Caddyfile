@@ -1,0 +1,45 @@
+# One origin for the whole app: /api/* goes to FastAPI, everything else to Next.js.
+# SITE_ADDRESS examples:
+#   qa.example.co.tz        public DNS name -> automatic Let's Encrypt certificate
+#   qa.internal:443         on-prem name -> set TLS_MODE=internal (Caddy's own CA)
+#   :80                     plain HTTP (testing only)
+{
+	admin off
+}
+
+{$SITE_ADDRESS::80} {
+	{$TLS_DIRECTIVE}
+
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy no-referrer
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	request_body /api/* {
+		max_size 2GB  # bulk uploads send up to 10 files per request
+	}
+
+	handle /api/* {
+		reverse_proxy api:8000 {
+			transport http {
+				read_timeout 10m
+				write_timeout 10m
+			}
+		}
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
