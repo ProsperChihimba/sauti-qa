@@ -22,7 +22,7 @@ from app.models import Call, Segment
 from app.models.enums import Speaker
 from app.services import audio as audio_mod
 from app.services.app_settings import get_runtime_settings
-from app.services.asr import ASRContext, ASRSegment, get_asr
+from app.services.asr import ASRContext, ASRSegment, filter_hallucinations, get_asr
 from app.services.audio.vad import detect_speech
 from app.services.redaction import redact, redact_words
 from app.services.speakers import assign_speakers, get_diarizer, heuristic_agent
@@ -118,6 +118,10 @@ def transcribe(db: Session, call: Call, heartbeat) -> None:
     with _tmpdir() as tmp:
         wav = _fetch(call.audio_processed_key, tmp, "processed.wav")
         segs, method = _transcribe_audio(db, call, wav, heartbeat)
+        segs, dropped = filter_hallucinations(segs)
+        # Keep only where and how sure, never the dropped text (it may contain PII).
+        call.meta = {**(call.meta or {}), "asr_dropped": [
+            {"start": d.start, "end": d.end, "confidence": d.confidence} for d in dropped]}
 
         db.execute(delete(Segment).where(Segment.call_id == call.id))
         idx = 0

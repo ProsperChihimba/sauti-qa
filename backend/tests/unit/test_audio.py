@@ -21,3 +21,14 @@ def test_gain_is_capped_and_loud_audio_untouched():
     assert np.abs(normalize_gain(silent)).max() <= 1e-5 * 10 ** (MAX_GAIN_DB / 20) + 1e-6
     loud = _tone(0.8)
     assert np.array_equal(normalize_gain(loud), loud)
+
+
+def test_low_confidence_segments_are_dropped():
+    from app.services.asr import ASRSegment, filter_hallucinations
+
+    segs = [ASRSegment(0, 10.6, "katika miaka yote", 0.61), ASRSegment(10.6, 11.9, "Bei za", 0.38),
+            ASRSegment(12, 14.2, "Stamba na stamba", 0.27), ASRSegment(15, 25, "maneno ya kweli", 0.42),
+            ASRSegment(26, 27, "ndiyo", None)]
+    kept, dropped = filter_hallucinations(segs)
+    assert [s.text for s in kept] == ["katika miaka yote", "maneno ya kweli", "ndiyo"]
+    assert [s.text for s in dropped] == ["Bei za", "Stamba na stamba"]

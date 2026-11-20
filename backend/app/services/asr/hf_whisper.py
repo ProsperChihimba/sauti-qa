@@ -35,7 +35,9 @@ class HFWhisperASR(ASRProvider):
         self.model = WhisperForConditionalGeneration.from_pretrained(model_id, torch_dtype=self.dtype, cache_dir=cache)
         self.model.to(self.device).eval()
         self.language = s.asr_language if language == "default" else language
-        self.batch_size = s.asr_batch_size
+        # Batching only pays off on GPU; on CPU it multiplies memory (about 3 GB per
+        # extra 12 s region for a large model) without making decoding faster.
+        self.batch_size = s.asr_batch_size if self.device.startswith("cuda") else 1
         self.generate_kwargs = generate_kwargs or {}
         # Some fine-tunes (e.g. BuzzASR, which replaced the tokenizer) have no timestamp
         # tokens. Then each VAD speech region becomes one transcript line.
