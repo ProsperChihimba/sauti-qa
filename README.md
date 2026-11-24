@@ -172,6 +172,8 @@ Real results on phone-quality Swahili are in `docs/real-test-2026-11.md`. It rep
 
 Recommended approach: score a few hundred calls with Claude, have analysts review a sample, then run the same calls through candidate open models (a strong multilingual instruction model, 30B+ parameters for good Swahili) and compare agreement with the analyst-corrected answers before switching. The prompt always tells the model to judge only the agent, not to penalise transcription errors, to lower confidence when unclear, and to quote verbatim in Swahili.
 
+**Measure a model before trusting it.** `backend/evals/scoring/` holds 30 Swahili customer-care calls with analyst answers (fraud, wrong information, traps, rude agents, code-switching, noisy transcripts...). `python scripts/eval_scoring.py --provider anthropic` (or `--provider openai --model ... --base-url ...`) reports agreement per criterion, critical failures caught and missed, false auto-fails, flags and resolution accuracy. Run it for every candidate model; see `backend/evals/scoring/README.md`.
+
 **The model never computes the score.** It returns yes / no / na per criterion with evidence and confidence; the code validates and repairs that output (missing criteria, invalid answers, N/A where not allowed, non-existent or wrong segment references, paraphrased quotes) and computes: score = points earned / applicable points; any critical criterion answered "no" is an auto-fail (score 0). Every repair is logged on the evaluation and forces human review.
 
 ## Going fully on-prem / offline
