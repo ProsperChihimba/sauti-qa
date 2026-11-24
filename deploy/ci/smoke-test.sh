@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 BASE=http://localhost
-DC="docker compose -f deploy/docker-compose.yml --env-file .env"
+DC=${DC:-"docker compose -f deploy/docker-compose.yml --env-file .env"}
 JAR=$(mktemp)
 fail() { echo "SMOKE TEST FAILED: $*" >&2; exit 1; }
 json() { python3 -c "import sys,json; d=json.load(sys.stdin); print($1)"; }
@@ -13,6 +13,7 @@ for _ in $(seq 1 90); do curl -fsS "$BASE/api/health" >/dev/null 2>&1 && break; 
 curl -fsS "$BASE/api/ready" | tee /dev/stderr | grep -q '"database":"ok"' || fail "API not ready"
 
 echo "== web UI"
+for _ in $(seq 1 60); do [ "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/login")" = 200 ] && break; sleep 2; done
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$BASE/login")" = 200 ] || fail "login page not served"
 
 echo "== login (bootstrap admin)"

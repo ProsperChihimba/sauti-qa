@@ -6,7 +6,6 @@ rand() { head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n'; }
 sed \
   -e "s|^SECRET_KEY=.*|SECRET_KEY=$(rand)$(rand)|" \
   -e "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$(rand)|" \
-  -e "s|^MINIO_ROOT_PASSWORD=.*|MINIO_ROOT_PASSWORD=$(rand)|" \
   -e "s|^BOOTSTRAP_ADMIN_EMAIL=.*|BOOTSTRAP_ADMIN_EMAIL=ci-admin@sauti.local|" \
   -e "s|^BOOTSTRAP_ADMIN_PASSWORD=.*|BOOTSTRAP_ADMIN_PASSWORD=ci-admin-password|" \
   -e "s|^SITE_ADDRESS=.*|SITE_ADDRESS=:80|" \
