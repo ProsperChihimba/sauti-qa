@@ -1,0 +1,590 @@
+# Scoring evaluation set: realistic Swahili customer-care calls with the answers
+# a QA analyst would give for the default scorecard
+# (seed/scorecard_telecom_sw.json). Run with scripts/eval_scoring.py.
+#
+# Format
+#   lines:     [A|C|U, text]  A = agent, C = customer, U = unknown speaker (mono, unlabelled)
+#   defaults:  good -> start from the answers for a model call (see GOOD_DEFAULTS in the
+#              script), then `expected` overrides them.
+#   expected:  criterion_id: yes | no | na.  Criteria left out are not scored for this case
+#              (genuinely debatable); "?" also means "not scored".
+#   flags_required / flags_forbidden: fraud, wrong_information, escalation_risk, other
+#   resolution / sentiment: accepted values (any one counts as correct)
+#
+# Personal data appears as redaction tags ([PHONE], [NIDA]...), exactly as the model
+# sees it in production. Add your own real (redacted) calls here as the pilot runs.
+
+cases:
+
+  - id: C01-good-data-bundle
+    title: Model call, data bundle not working, fixed on the call
+    tags: [good]
+    defaults: good
+    lines:
+      - [A, "Habari za asubuhi, karibu Vodacom, naitwa Neema. Nikusaidie nini leo?"]
+      - [C, "Habari dada. Nina tatizo na bando langu la intaneti, nililipia jana lakini halifanyi kazi."]
+      - [A, "Pole sana kwa usumbufu huo. Naomba majina yako kamili na namba yako ya simu tafadhali."]
+      - [C, "Naitwa Juma Hassan, namba ni [PHONE]."]
+      - [A, "Asante bwana Juma. Kwa usalama, naomba unithibitishie tarehe yako ya kuzaliwa."]
+      - [C, "Ni tarehe kumi na mbili mwezi wa tano mwaka elfu moja mia tisa tisini."]
+      - [A, "Asante. Naona ulinunua bando la GB tano kwa shilingi elfu kumi jana saa nne usiku. Je, data imeacha kufanya kazi tangu lini?"]
+      - [C, "Tangu jana usiku, sijatumia hata kidogo."]
+      - [A, "Nimeona tatizo, bando halikuwa limewashwa vizuri kwenye mfumo. Nimelirekebisha sasa hivi, tafadhali jaribu."]
+      - [C, "Sawa ngoja nijaribu. Eeh, sasa inafanya kazi."]
+      - [A, "Vizuri sana. Kuna kingine chochote naweza kukusaidia nacho leo?"]
+      - [C, "Hapana, ni hicho tu. Asante sana."]
+      - [A, "Asante kwa kupiga simu Vodacom, uwe na siku njema. Kwaheri."]
+    resolution: [resolved]
+    sentiment: [positive]
+    flags_forbidden: [fraud, wrong_information, escalation_risk]
+
+  - id: C02-good-reversal-with-hold
+    title: M-Pesa sent to wrong number; verification, hold etiquette, reversal request with timeline
+    tags: [good, hold]
+    defaults: good
+    expected: {hold_etiquette: yes}
+    lines:
+      - [A, "Karibu Vodacom, naitwa Baraka, nikusaidie vipi?"]
+      - [C, "Nimekosea kutuma pesa M-Pesa, shilingi elfu hamsini, kwa namba isiyo sahihi."]
+      - [A, "Pole sana kwa hilo, nitakusaidia. Kwanza kwa usalama naomba majina yako kamili na tarehe ya kuzaliwa."]
+      - [C, "Asha Mohamed, tarehe tatu mwezi wa nane mwaka elfu moja mia tisa themanini na nane."]
+      - [A, "Asante Bi Asha. Naomba namba uliyotuma kwayo na muda wa muamala."]
+      - [C, "Nimetuma kwa [PHONE] saa tatu asubuhi leo."]
+      - [A, "Sawa. Naomba nikuweke kwenye hold kwa dakika moja nikague muamala, tafadhali subiri."]
+      - [C, "Sawa."]
+      - [A, "Asante kwa kusubiri. Nimeuona muamala na nimefungua ombi la kurudisha pesa. Kiasi hicho kimezuiliwa kwenye akaunti ya mpokeaji, na utapokea majibu kwa SMS ndani ya saa ishirini na nne."]
+      - [C, "Sawa, nashukuru."]
+      - [A, "Kuna kingine chochote naweza kukusaidia leo?"]
+      - [C, "Hapana."]
+      - [A, "Asante kwa kupiga simu Vodacom, siku njema."]
+    resolution: [partially_resolved, resolved]
+    sentiment: [positive, neutral]
+    flags_forbidden: [fraud, wrong_information]
+
+  - id: C03-fraud-pin-request
+    title: Agent asks for the M-Pesa PIN
+    tags: [critical, fraud]
+    lines:
+      - [A, "Ndiyo, sema."]
+      - [C, "Habari, nimetumiwa ujumbe kwamba nimeshinda zawadi ya shilingi laki tano, ni kweli?"]
+      - [A, "Aah sijui, labda. Nipe namba yako."]
+      - [C, "Ni [PHONE]."]
+      - [A, "Ok, na PIN yako ya M-Pesa ili nihakikishe akaunti."]
+      - [C, "PIN yangu? Ni [PIN]."]
+      - [A, "Sawa, utapokea zawadi yako baadaye. Kitu kingine?"]
+      - [C, "Hapana."]
+    expected:
+      greeting: no
+      self_introduction: no
+      offer_help: no
+      empathy: no
+      no_confidential_request: no
+      accurate_information: no
+      professional_language: no
+      further_assistance: yes
+      closing: no
+      hold_etiquette: na
+      escalation_handling: na
+    flags_required: [fraud]
+
+  - id: C04-fraud-sms-code
+    title: Agent asks the customer to read out the code sent by SMS (OTP), politely
+    tags: [critical, fraud, subtle]
+    defaults: good
+    lines:
+      - [A, "Habari za mchana, karibu Vodacom, naitwa Rehema. Nikusaidie nini?"]
+      - [C, "Nimesahau nenosiri la programu ya M-Pesa, siwezi kuingia."]
+      - [A, "Pole sana. Naomba majina yako kamili na tarehe ya kuzaliwa kwa ajili ya uthibitisho."]
+      - [C, "Daudi Mollel, tarehe kumi na tano mwezi wa kwanza elfu mbili na moja."]
+      - [A, "Asante. Nimekutumia ujumbe sasa hivi wenye namba ya siri ya tarakimu sita. Tafadhali nisomee namba hiyo ili nikamilishe."]
+      - [C, "Imefika, ni [NUMBER]."]
+      - [A, "Asante, tayari nimebadilisha. Sasa unaweza kuingia na kuweka nenosiri jipya."]
+      - [C, "Sawa, asante."]
+      - [A, "Kuna kingine naweza kukusaidia? Asante kwa kupiga simu Vodacom, siku njema."]
+    expected:
+      no_confidential_request: no
+      accurate_information: "?"
+      probing: "?"
+    flags_required: [fraud]
+
+  - id: C05-agent-warns-never-share-pin
+    title: Agent mentions PIN only to warn the customer never to share it (trap)
+    tags: [trap, good]
+    defaults: good
+    lines:
+      - [A, "Karibu Vodacom, naitwa Neema, nikusaidie vipi?"]
+      - [C, "Kuna mtu amenipigia akasema ni wa Vodacom, ananiomba PIN yangu ya M-Pesa ili anirudishie pesa."]
+      - [A, "Pole sana, na asante kwa kutupigia kwanza. Huyo si mfanyakazi wetu. Vodacom haitakuomba PIN yako kamwe, na hata mimi sitakuomba. Usimpe mtu yeyote PIN yako."]
+      - [C, "Aah, kumbe! Sawa, sijampa."]
+      - [A, "Umefanya vizuri. Naomba namba iliyokupigia ili tuiripoti na kuifungia."]
+      - [C, "Ni [PHONE]."]
+      - [A, "Asante, nimeiripoti kwenye kitengo cha udanganyifu. Ukipokea simu nyingine kama hiyo, kata na utupigie mia moja."]
+      - [C, "Sawa nimeelewa, asante sana."]
+      - [A, "Kuna kingine chochote? Asante kwa kupiga simu Vodacom, siku njema."]
+    expected:
+      verification: na
+    flags_forbidden: [fraud, wrong_information]
+    resolution: [resolved]
+
+  - id: C06-customer-volunteers-pin
+    title: Customer starts reading the PIN; agent stops them (trap)
+    tags: [trap, good]
+    defaults: good
+    lines:
+      - [A, "Habari, karibu Vodacom, naitwa Asha. Nikusaidie nini?"]
+      - [C, "Salio langu la M-Pesa halionekani. PIN yangu ni [PIN]..."]
+      - [A, "Samahani nikukatize, tafadhali usinitajie PIN yako, wala usimtajie mtu yeyote. Sihitaji PIN ili kukusaidia."]
+      - [C, "Sawa, samahani."]
+      - [A, "Hakuna shida. Pole kwa usumbufu. Naomba majina yako kamili na tarehe ya kuzaliwa."]
+      - [C, "Rehema Kweka, tarehe tisa mwezi wa sita elfu moja mia tisa tisini na tano."]
+      - [A, "Asante. Unatumia programu au unapiga star one five star?"]
+      - [C, "Napiga star one five star."]
+      - [A, "Mfumo ulikuwa na hitilafu fupi asubuhi, sasa umerudi. Tafadhali jaribu tena sasa."]
+      - [C, "Sawa, salio linaonekana sasa."]
+      - [A, "Vizuri. Kuna kingine naweza kukusaidia? Asante kwa kupiga simu Vodacom, siku njema."]
+    flags_forbidden: [fraud]
+    resolution: [resolved]
+
+  - id: C07-rude-agent
+    title: Rude, impatient agent; no greeting or empathy
+    tags: [behaviour]
+    lines:
+      - [A, "Ndiyo, sema haraka."]
+      - [C, "Habari, simu yangu haipati mtandao tangu jana."]
+      - [A, "Zima uwashe."]
+      - [C, "Nimeshafanya hivyo mara nyingi, bado haifanyi kazi."]
+      - [A, "Basi nenda dukani, mimi sina muda wa kukaa na wewe hapa."]
+      - [C, "Lakini nimekupigia ili unisaidie!"]
+      - [A, "Nimeshakuambia nenda dukani."]
+    expected:
+      greeting: no
+      self_introduction: no
+      offer_help: no
+      no_confidential_request: yes
+      probing: no
+      empathy: no
+      resolution: no
+      professional_language: no
+      further_assistance: no
+      closing: no
+      hold_etiquette: na
+      escalation_handling: "?"
+    sentiment: [negative]
+    resolution: [unresolved]
+
+  - id: C08-angry-customer-calm-agent
+    title: Customer is abusive; agent stays professional and escalates properly (judge only the agent)
+    tags: [behaviour, escalation]
+    defaults: good
+    expected:
+      escalation_handling: yes
+      hold_etiquette: yes
+      further_assistance: "?"
+      closing: "?"
+    lines:
+      - [A, "Habari, karibu Vodacom, naitwa Baraka, nikusaidie nini?"]
+      - [C, "Nyie ni wezi! Mmekata salio langu shilingi elfu ishirini bila sababu, huduma yenu ni mbovu kabisa!"]
+      - [A, "Pole sana, naelewa hasira yako, hakuna anayependa kukatwa pesa bila maelezo. Nitaangalia sasa hivi. Naomba majina yako na tarehe ya kuzaliwa."]
+      - [C, "Hamisi Juma, mwaka elfu moja mia tisa themanini na tano mwezi wa nne tarehe saba. Fanya haraka!"]
+      - [A, "Asante bwana Hamisi. Naona makato matatu ya huduma ya nyimbo za kupiga simu uliyojiunga nayo wiki iliyopita."]
+      - [C, "Sijajiunga na kitu chochote! Nataka kuongea na meneja wako sasa hivi."]
+      - [A, "Sawa, ni haki yako. Nimeshaiondoa huduma hiyo isikukate tena. Naomba nikuweke kwenye hold kidogo nikuunganishe na msimamizi kuhusu kurudishiwa pesa, tafadhali subiri."]
+      - [A, "Asante kwa kusubiri. Msimamizi yuko kwenye laini sasa, atakusaidia kuhusu marejesho. Samahani tena kwa usumbufu."]
+    notes: "Agent did not ask 'anything else' before transferring"
+    flags_required: [escalation_risk]
+    sentiment: [negative, mixed]
+    resolution: [escalated]
+
+  - id: C09-escalation-refused
+    title: Customer asks for a supervisor; agent refuses
+    tags: [escalation]
+    lines:
+      - [A, "Karibu Vodacom, naitwa Juma, nikusaidie vipi?"]
+      - [C, "Hii ni mara ya nne napiga kuhusu laini yangu kufungwa. Nataka kuongea na supervisor."]
+      - [A, "Hakuna supervisor hapa. Mimi ndiye ninayeongea na wewe."]
+      - [C, "Basi nitapeleka malalamiko TCRA."]
+      - [A, "Sawa, fanya unavyotaka. Piga kesho."]
+    expected:
+      greeting: yes
+      self_introduction: yes
+      offer_help: yes
+      no_confidential_request: yes
+      probing: no
+      empathy: no
+      resolution: no
+      escalation_handling: no
+      professional_language: no
+      further_assistance: no
+      closing: no
+      hold_etiquette: na
+    flags_required: [escalation_risk]
+    sentiment: [negative]
+    resolution: [unresolved]
+
+  - id: C10-escalation-handled
+    title: Technical issue beyond first line; agent escalates with ticket and timeline
+    tags: [escalation, good]
+    defaults: good
+    expected: {escalation_handling: yes}
+    lines:
+      - [A, "Habari za jioni, karibu Vodacom, naitwa Neema. Nikusaidie nini?"]
+      - [C, "Nimehamia namba mpya lakini huduma zangu za M-Pesa bado ziko kwenye laini ya zamani."]
+      - [A, "Pole kwa usumbufu huo. Naomba majina yako kamili na namba ya NIDA kwa uthibitisho."]
+      - [C, "Salma Ally, NIDA ni [NIDA]."]
+      - [A, "Asante Bi Salma. Je, laini ya zamani bado unayo au imepotea?"]
+      - [C, "Imepotea."]
+      - [A, "Sawa. Kuhamisha akaunti ya M-Pesa kunafanywa na idara ya M-Pesa, si mimi moja kwa moja. Nimefungua ombi namba [NUMBER] na nimelipeleka kwa idara husika. Watakupigia ndani ya saa arobaini na nane."]
+      - [C, "Sawa, nitasubiri."]
+      - [A, "Kuna kingine naweza kukusaidia leo? Asante kwa kupiga simu Vodacom, uwe na jioni njema."]
+    resolution: [escalated, partially_resolved]
+
+  - id: C11-wrong-info-reversal
+    title: Agent wrongly says money sent to a wrong number can never be reversed
+    tags: [critical, wrong_information]
+    defaults: good
+    lines:
+      - [A, "Karibu Vodacom, naitwa Asha, nikusaidie vipi?"]
+      - [C, "Nimekosea kutuma shilingi laki moja kwa namba isiyo sahihi dakika kumi zilizopita."]
+      - [A, "Pole sana. Naomba majina yako na tarehe ya kuzaliwa."]
+      - [C, "Pendo Massawe, tarehe ishirini mwezi wa kumi elfu moja mia tisa tisini na mbili."]
+      - [A, "Asante. Naomba muda wa muamala na namba uliyotuma."]
+      - [C, "Saa nne na nusu, kwa [PHONE]."]
+      - [A, "Samahani sana, pesa zikishatumwa kwa namba isiyo sahihi haziwezi kurudishwa kamwe, hakuna utaratibu wowote wa kuzirudisha. Itabidi uongee na mpokeaji mwenyewe."]
+      - [C, "Kweli? Hakuna kabisa?"]
+      - [A, "Ndiyo, hakuna. Kuna kingine naweza kukusaidia? Asante kwa kupiga Vodacom."]
+    expected:
+      accurate_information: no
+      resolution: no
+    flags_required: [wrong_information]
+    resolution: [unresolved]
+
+  - id: C12-wrong-info-impossible-promise
+    title: Agent makes an impossible promise to end the call
+    tags: [critical, wrong_information]
+    defaults: good
+    lines:
+      - [A, "Habari, karibu Vodacom, naitwa Juma, nikusaidie nini?"]
+      - [C, "Bando langu la mwezi limeisha baada ya wiki moja tu, nadhani mmenikata vibaya."]
+      - [A, "Pole sana. Naomba majina yako na tarehe ya kuzaliwa."]
+      - [C, "Godfrey Mushi, tarehe moja mwezi wa tatu elfu moja mia tisa themanini na tisa."]
+      - [A, "Asante. Umekuwa ukitumia video sana?"]
+      - [C, "Ndiyo, kidogo."]
+      - [A, "Sawa, usijali. Nimekuwekea GB hamsini bure kila mwezi kwa maisha yako yote, hutalipia data tena."]
+      - [C, "Kweli? Asante sana!"]
+      - [A, "Karibu. Kuna kingine? Asante kwa kupiga Vodacom, siku njema."]
+    expected:
+      accurate_information: no
+      resolution: "?"
+    flags_required: [wrong_information]
+
+  - id: C13-no-verification-puk
+    title: Agent gives a PUK code without verifying the caller
+    tags: [verification]
+    defaults: good
+    lines:
+      - [A, "Karibu Vodacom, naitwa Rehema, nikusaidie vipi?"]
+      - [C, "Laini yangu imefungwa, inaomba PUK."]
+      - [A, "Pole sana. Ni namba gani?"]
+      - [C, "[PHONE]."]
+      - [A, "Sawa, PUK ni [NUMBER]. Iandike ukiwa tayari."]
+      - [C, "Nimeiandika, imefunguka. Asante."]
+      - [A, "Vizuri. Kuna kingine naweza kukusaidia? Asante kwa kupiga simu Vodacom, siku njema."]
+    expected:
+      verification: no
+      probing: "?"
+      accurate_information: "?"
+    resolution: [resolved]
+
+  - id: C14-info-only-no-verification-needed
+    title: General tariff question; no account access, so verification is N/A
+    tags: [na]
+    defaults: good
+    expected: {verification: na, probing: "?", empathy: "?"}
+    lines:
+      - [A, "Habari za asubuhi, karibu Vodacom, naitwa Neema. Nikusaidie nini?"]
+      - [C, "Nataka kujua vifurushi vya intaneti vya wiki vina bei gani."]
+      - [A, "Kwa furaha. Unatumia intaneti kwa kazi gani zaidi, mitandao ya kijamii au video?"]
+      - [C, "Zaidi WhatsApp na Facebook."]
+      - [A, "Basi kifurushi cha wiki cha GB mbili kinaweza kukufaa. Unaweza kuona bei zote za sasa kwa kupiga star one four nine star zero one hash, kwa kuwa bei hubadilika mara kwa mara."]
+      - [C, "Sawa nitaangalia, asante."]
+      - [A, "Karibu sana. Kuna kingine naweza kukusaidia? Asante kwa kupiga simu Vodacom, siku njema."]
+    resolution: [resolved]
+    flags_forbidden: [wrong_information]
+
+  - id: C15-no-closing
+    title: Issue solved but agent ends abruptly, no further-assistance question, no closing
+    tags: [closing]
+    defaults: good
+    lines:
+      - [A, "Habari, karibu Vodacom, naitwa Asha. Nikusaidie nini?"]
+      - [C, "Sipokei SMS tangu jana."]
+      - [A, "Pole sana. Naomba majina yako na tarehe ya kuzaliwa kwa uthibitisho."]
+      - [C, "Joseph Mrema, tarehe kumi na nane mwezi wa tisa elfu moja mia tisa tisini na saba."]
+      - [A, "Asante. Je, unatumia simu ya aina gani na umebadilisha mipangilio hivi karibuni?"]
+      - [C, "Samsung, nilibadilisha kitu kwenye ujumbe jana."]
+      - [A, "Sawa, namba ya kituo cha ujumbe ilibadilika. Nimekutumia mipangilio sahihi, ikubali sasa."]
+      - [C, "Nimeikubali, SMS zimeanza kuingia."]
+      - [A, "Sawa."]
+    expected:
+      further_assistance: no
+      closing: no
+    resolution: [resolved]
+
+  - id: C16-code-switching
+    title: Heavy Swahili-English code-switching, good call
+    tags: [good, code_switching]
+    defaults: good
+    lines:
+      - [A, "Good morning, karibu Vodacom, my name is Kelvin. Nikusaidie aje leo?"]
+      - [C, "Morning. Nina issue na internet, speed iko slow sana since morning."]
+      - [A, "Pole sana for the inconvenience. Naomba full names zako na date of birth for verification."]
+      - [C, "Brian Otieno, twenty second June ninety three."]
+      - [A, "Thank you Brian. Uko eneo gani, na ni kwenye 4G au 3G?"]
+      - [C, "Niko Mikocheni, inaonyesha 4G."]
+      - [A, "Okay, nimeona kuna maintenance kwenye tower ya Mikocheni, itaisha saa nane mchana. Baada ya hapo speed itarudi normal. Nime-log ticket [NUMBER] ili tukufuatilie."]
+      - [C, "Sawa, fine."]
+      - [A, "Kuna kingine chochote nikusaidie? Thank you for calling Vodacom, have a nice day."]
+    resolution: [partially_resolved, resolved]
+
+  - id: C17-asr-noisy-transcript
+    title: Good call with heavy speech-recognition errors (must not be penalised)
+    tags: [good, asr_noise]
+    defaults: good
+    lines:
+      - [A, "habri za asubui karibu vodakom naitwa rehema nikusaidi nni leo"]
+      - [C, "habari nina tatzo salio langu limepotea"]
+      - [A, "pole sna kwa usumbufu naomba majna yako kamili na tarehe ya kuzaliwa"]
+      - [C, "anna mwakalinga tarehe nne mwez wa saba elfu moja mia tisa themanin"]
+      - [A, "asante bi ana je ulitumia sim jana usiku au ulinunua kifurushi"]
+      - [C, "nilinunua kifrushi cha dakika"]
+      - [A, "nimeona kifurushi kilinunuliwa saa tano usiku ndio maana salio lilipungua hakuna makato mengine"]
+      - [C, "aah sawa nimeelewa"]
+      - [A, "kuna kingine nawza kukusaidia asante kwa kupga simu vodakom siku njema"]
+    resolution: [resolved]
+
+  - id: C18-mono-unknown-speakers
+    title: Mono call, speakers not labelled; agent must be identified from content
+    tags: [good, speakers]
+    defaults: good
+    lines:
+      - [U, "Karibu Vodacom, naitwa Daudi, nikusaidie nini leo?"]
+      - [U, "Habari, nataka kujua kwa nini nimekatwa shilingi elfu mbili leo."]
+      - [U, "Pole kwa hilo. Naomba majina yako kamili na tarehe ya kuzaliwa kwa uthibitisho."]
+      - [U, "Mariam Said, tarehe mbili mwezi wa pili elfu moja mia tisa themanini na saba."]
+      - [U, "Asante. Makato hayo ni ya kifurushi cha kila siku ulichojiunga nacho. Ungependa nikiondoe?"]
+      - [U, "Ndiyo tafadhali, sikukusudia."]
+      - [U, "Nimekiondoa sasa, hutakatwa tena. Kuna kingine naweza kukusaidia? Asante kwa kupiga simu Vodacom, siku njema."]
+    resolution: [resolved]
+
+  - id: C19-wrong-number
+    title: Short call, caller dialled the wrong number
+    tags: [na]
+    lines:
+      - [A, "Habari za mchana, karibu Vodacom huduma kwa wateja, naitwa Asha. Nikusaidie nini?"]
+      - [C, "Aah samahani, nilikuwa natafuta benki, nimekosea namba."]
+      - [A, "Hakuna shida kabisa. Uwe na siku njema, asante kwa kupiga Vodacom."]
+    expected:
+      greeting: yes
+      self_introduction: yes
+      offer_help: yes
+      verification: na
+      no_confidential_request: yes
+      professional_language: yes
+      hold_etiquette: na
+      escalation_handling: na
+      closing: yes
+
+  - id: C20-hold-without-permission
+    title: Agent puts the customer on hold abruptly and never thanks them
+    tags: [hold]
+    defaults: good
+    expected: {hold_etiquette: no, empathy: "?", probing: "?"}
+    lines:
+      - [A, "Karibu Vodacom, naitwa Juma, nikusaidie nini?"]
+      - [C, "Nataka kuhamisha salio la muda wa maongezi kwenda kwa mama yangu."]
+      - [A, "Pole, naomba majina yako na tarehe ya kuzaliwa."]
+      - [C, "Felista Kimaro, tarehe sita mwezi wa kumi na mbili elfu moja mia tisa tisini."]
+      - [A, "Subiri."]
+      - [C, "Halo? Bado upo?"]
+      - [A, "Ndiyo. Piga star one five zero star zero one, chagua kuhamisha salio, weka namba ya mama yako na kiasi."]
+      - [C, "Sawa."]
+      - [A, "Kuna kingine? Asante kwa kupiga Vodacom, siku njema."]
+    notes: "Empathy 'Pole' at verification is formulaic"
+    resolution: [resolved]
+
+  - id: C21-no-empathy
+    title: Customer lost money and is upset; agent is efficient but shows no empathy
+    tags: [behaviour]
+    defaults: good
+    expected: {empathy: no, greeting: "?", probing: "?"}
+    lines:
+      - [A, "Vodacom, naitwa Baraka. Nikusaidie nini?"]
+      - [C, "Nimeibiwa simu jana, nina wasiwasi sana mtu atatoa pesa zangu za M-Pesa, kuna laki tatu humo."]
+      - [A, "Majina kamili na tarehe ya kuzaliwa."]
+      - [C, "Zawadi Ngowi, tarehe kumi mwezi wa tano elfu moja mia tisa themanini na sita."]
+      - [A, "Nimefunga laini na akaunti ya M-Pesa. Nenda duka lolote la Vodacom na kitambulisho upate laini mpya, pesa zitakuwepo."]
+      - [C, "Sawa."]
+      - [A, "Kingine?"]
+      - [C, "Hapana."]
+      - [A, "Asante kwa kupiga Vodacom."]
+    notes: "greeting has brand but no greeting words"
+    resolution: [resolved]
+
+  - id: C22-no-probing-wrong-fix
+    title: Agent assumes the problem without asking; customer's issue stays unresolved
+    tags: [behaviour]
+    defaults: good
+    lines:
+      - [A, "Habari, karibu Vodacom, naitwa Rehema, nikusaidie nini?"]
+      - [C, "Simu yangu ina shida na intaneti."]
+      - [A, "Pole sana. Naomba majina yako na tarehe ya kuzaliwa."]
+      - [C, "Peter Shirima, tarehe tatu mwezi wa tatu elfu moja mia tisa tisini na nne."]
+      - [A, "Asante. Nimekutumia mipangilio ya intaneti, ikubali na uzime uwashe simu."]
+      - [C, "Lakini intaneti inafanya kazi, tatizo ni kwamba bando linaisha haraka sana."]
+      - [A, "Mipangilio itasaidia. Kuna kingine naweza kukusaidia? Asante kwa kupiga Vodacom, siku njema."]
+    expected:
+      probing: no
+      resolution: no
+      accurate_information: "?"
+    resolution: [unresolved]
+
+  - id: C23-outage-next-steps
+    title: Network outage; agent cannot fix it but gives clear next steps and time
+    tags: [good]
+    defaults: good
+    lines:
+      - [A, "Habari za jioni, karibu Vodacom, naitwa Neema, nikusaidie nini?"]
+      - [C, "Hakuna mtandao kabisa hapa Kibaha tangu mchana."]
+      - [A, "Pole sana kwa usumbufu huo. Naomba majina yako kamili na tarehe ya kuzaliwa."]
+      - [C, "Omari Bakari, tarehe kumi na moja mwezi wa nne elfu moja mia tisa themanini na tatu."]
+      - [A, "Asante. Uko eneo gani hasa la Kibaha, na majirani zako nao wamekosa mtandao?"]
+      - [C, "Picha ya Ndege, ndiyo wote hatuna."]
+      - [A, "Kuna hitilafu ya umeme kwenye mnara wa Picha ya Ndege, mafundi wako eneo la tukio na wanatarajia kurudisha huduma kabla ya saa nne usiku. Nimeandika namba yako, utapokea SMS huduma ikirudi."]
+      - [C, "Sawa, nimeelewa."]
+      - [A, "Kuna kingine naweza kukusaidia? Asante kwa kupiga simu Vodacom, uwe na jioni njema."]
+    resolution: [partially_resolved, unresolved]
+
+  - id: C24-customer-threatens-tcra
+    title: Customer threatens to complain to TCRA; agent handles it professionally
+    tags: [escalation]
+    defaults: good
+    lines:
+      - [A, "Karibu Vodacom, naitwa Asha, nikusaidie vipi?"]
+      - [C, "Nimekatwa pesa mara tatu kwa ujumbe ambao sijaomba. Mkiendelea hivi nitapeleka malalamiko TCRA na kuhamia mtandao mwingine."]
+      - [A, "Pole sana, naelewa jinsi inavyokera. Nitalishughulikia sasa. Naomba majina yako na tarehe ya kuzaliwa."]
+      - [C, "Neema Lyimo, tarehe nane mwezi wa nane elfu moja mia tisa tisini na moja."]
+      - [A, "Asante. Ulijiunga na huduma ya habari za michezo kupitia tangazo. Nimeiondoa, na nimeomba urejeshewe shilingi elfu tatu ndani ya siku tatu."]
+      - [C, "Sawa, nitaona kama zitarudi."]
+      - [A, "Zisiporudi tupigie tena na utaje namba ya ombi [NUMBER]. Kuna kingine? Asante kwa kupiga Vodacom, siku njema."]
+    expected: {escalation_handling: "?"}
+    flags_required: [escalation_risk]
+    resolution: [resolved, partially_resolved]
+    sentiment: [neutral, mixed, negative]
+
+  - id: C25-sarcastic-agent
+    title: Agent is sarcastic and blames the customer
+    tags: [behaviour]
+    defaults: good
+    lines:
+      - [A, "Karibu Vodacom, naitwa Kelvin, nikusaidie nini?"]
+      - [C, "Nimejaribu kununua kifurushi mara tatu lakini haikubali."]
+      - [A, "Naomba majina yako na tarehe ya kuzaliwa."]
+      - [C, "Ally Mussa, tarehe tano mwezi wa tano elfu moja mia tisa themanini."]
+      - [A, "Unabonyeza nini hasa?"]
+      - [C, "Nachagua namba mbili kisha moja."]
+      - [A, "Kama hujui kutumia simu si kosa langu. Ni namba moja kisha mbili, si mbili kisha moja. Hata mtoto anajua hilo."]
+      - [C, "Sawa basi."]
+      - [A, "Kingine? Asante kwa kupiga Vodacom."]
+    expected:
+      empathy: no
+      professional_language: no
+    resolution: [resolved]
+    sentiment: [negative, neutral]
+
+  - id: C26-verification-with-nida-tags
+    title: Verification by NIDA digits, all personal data redacted (tags must not be penalised)
+    tags: [good, redaction]
+    defaults: good
+    lines:
+      - [A, "Habari za asubuhi, karibu Vodacom, naitwa Daudi. Nikusaidie nini leo?"]
+      - [C, "Nataka kusajili laini yangu upya kwa NIDA."]
+      - [A, "Pole kwa usumbufu wa kusajili upya. Naomba namba yako ya NIDA na majina kamili kwa uthibitisho."]
+      - [C, "NIDA ni [NIDA], naitwa Saida Juma."]
+      - [A, "Asante Bi Saida, taarifa zinalingana. Namba unayotaka kusajili ni ipi?"]
+      - [C, "Ni [PHONE]."]
+      - [A, "Nimekamilisha usajili, utapokea SMS ya uthibitisho ndani ya dakika tano."]
+      - [C, "Imefika, asante."]
+      - [A, "Kuna kingine chochote naweza kukusaidia? Asante kwa kupiga simu Vodacom, siku njema."]
+    resolution: [resolved]
+
+  - id: C27-english-call
+    title: Customer speaks English; agent responds well in English
+    tags: [good, code_switching]
+    defaults: good
+    lines:
+      - [A, "Good afternoon, welcome to Vodacom, my name is Neema. How may I help you today?"]
+      - [C, "Hi, I'm visiting from Kenya and my roaming isn't working."]
+      - [A, "I'm sorry about that, let me help. May I have your full name and date of birth for verification?"]
+      - [C, "James Kariuki, fourteenth of March, nineteen ninety."]
+      - [A, "Thank you James. Is it calls, data or both that are not working?"]
+      - [C, "Only data."]
+      - [A, "I see your roaming data was not activated. I've activated it now; please restart your phone."]
+      - [C, "It's working now, thanks."]
+      - [A, "Is there anything else I can help you with? Thank you for calling Vodacom, enjoy your stay."]
+    resolution: [resolved]
+    sentiment: [positive, neutral]
+
+  - id: C28-app-password-request
+    title: Agent asks for the M-Pesa app password
+    tags: [critical, fraud]
+    defaults: good
+    lines:
+      - [A, "Karibu Vodacom, naitwa Juma, nikusaidie nini?"]
+      - [C, "Programu ya M-Pesa haifunguki."]
+      - [A, "Pole sana. Naomba majina yako na tarehe ya kuzaliwa."]
+      - [C, "Agnes Temu, tarehe kumi na tatu mwezi wa sita elfu moja mia tisa tisini na sita."]
+      - [A, "Asante. Nipe nenosiri lako la programu nijaribu kuingia kwa upande wangu."]
+      - [C, "Ni [PIN]."]
+      - [A, "Sawa, nimeingia, sasa inafanya kazi. Kuna kingine? Asante kwa kupiga Vodacom, siku njema."]
+    expected:
+      no_confidential_request: no
+      accurate_information: "?"
+      probing: "?"
+    flags_required: [fraud]
+
+  - id: C29-prize-scam-handled-well
+    title: Customer asks about a prize SMS; agent correctly warns it is a scam
+    tags: [good, trap]
+    defaults: good
+    expected: {verification: na, probing: "?"}
+    lines:
+      - [A, "Habari, karibu Vodacom, naitwa Rehema, nikusaidie nini?"]
+      - [C, "Nimepata ujumbe kwamba nimeshinda milioni moja, ila nitume shilingi elfu kumi kwanza za usajili. Ni kweli?"]
+      - [A, "Asante sana kwa kuuliza kwanza. Huo ni ujumbe wa utapeli. Vodacom haikuombi kutuma pesa ili upokee zawadi. Usitume pesa yoyote."]
+      - [C, "Aisee! Nilikaribia kutuma."]
+      - [A, "Pole sana. Naomba namba iliyokutumia ujumbe tuifungie."]
+      - [C, "Ni [PHONE]."]
+      - [A, "Nimeiripoti. Kuna kingine naweza kukusaidia? Asante kwa kupiga simu Vodacom, siku njema."]
+    flags_forbidden: [wrong_information]
+    resolution: [resolved]
+
+  - id: C30-good-billing-refund
+    title: Long, complex postpaid billing dispute resolved with refund
+    tags: [good]
+    defaults: good
+    expected: {hold_etiquette: yes}
+    lines:
+      - [A, "Habari za asubuhi, karibu Vodacom huduma kwa wateja wa malipo ya baadaye, naitwa Baraka. Nikusaidie nini?"]
+      - [C, "Bili yangu ya mwezi huu ni shilingi laki moja na elfu ishirini, kawaida huwa elfu hamsini."]
+      - [A, "Pole sana kwa mshtuko huo, nitaangalia kwa makini. Naomba majina kamili, namba ya akaunti na tarehe ya kuzaliwa."]
+      - [C, "Kampuni ya Tumaini Traders, akaunti [ACCOUNT], mimi ni Rose Mbwana mmiliki, tarehe kumi na saba mwezi wa saba elfu moja mia tisa themanini na nne."]
+      - [A, "Asante Bi Rose. Je, kuna mtu kwenye kampuni alisafiri nje ya nchi mwezi huu?"]
+      - [C, "Ndiyo, mfanyakazi mmoja alikwenda Nairobi wiki mbili."]
+      - [A, "Naomba nikuweke kwenye hold dakika mbili nikague matumizi ya roaming, tafadhali subiri."]
+      - [A, "Asante kwa uvumilivu wako. Ongezeko ni la data ya roaming, shilingi elfu sitini na tano. Kwa kuwa kampuni haikuwa na kifurushi cha roaming, nimeidhinisha punguzo la asilimia hamsini kama msaada wa mara moja, na nimewasha kifurushi cha roaming kwa safari zijazo."]
+      - [C, "Hiyo ni nzuri, asanteni."]
+      - [A, "Punguzo litaonekana kwenye bili ijayo. Kuna kingine chochote naweza kukusaidia leo?"]
+      - [C, "Hapana, ni hayo tu."]
+      - [A, "Asante kwa kupiga simu Vodacom, uwe na siku njema."]
+    resolution: [resolved]
+    sentiment: [positive]
