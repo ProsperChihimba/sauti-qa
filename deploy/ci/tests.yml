@@ -1,0 +1,41 @@
+# Backend and web checks in containers (used by deploy/ci/run-all.sh).
+name: sauti-qa-tests
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment: { POSTGRES_USER: sauti, POSTGRES_PASSWORD: sauti, POSTGRES_DB: sauti_test }
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U sauti"], interval: 3s, retries: 30 }
+    tmpfs: [/var/lib/postgresql/data]
+
+  redis:
+    image: redis:7-alpine
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 3s, retries: 30 }
+
+  backend-tests:
+    image: python:3.12-slim
+    working_dir: /src
+    volumes: ["../../backend:/src:ro"]
+    environment:
+      TEST_DATABASE_URL: postgresql+psycopg://sauti:sauti@postgres:5432/sauti_test
+      REDIS_URL: redis://redis:6379/0
+      SAUTI_TEST_TMP: /tmp/sauti-test
+      PYTHONDONTWRITEBYTECODE: "1"
+    command:
+      - sh
+      - -c
+      - >-
+        apt-get update -qq && apt-get install -y -qq --no-install-recommends ffmpeg >/dev/null &&
+        mkdir /work && tar -C /src --exclude=.venv --exclude=data -cf - . | tar -C /work -xf - &&
+        cd /work && pip install -q -e ".[dev]" &&
+        ruff check app tests scripts && pytest -q -p no:cacheprovider
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  web-checks:
+    image: node:22-alpine
+    working_dir: /src
+    volumes: ["../../web:/src:ro"]
+    environment: { NEXT_TELEMETRY_DISABLED: "1" }
+    command: ["sh", "-c", "mkdir /work && tar -C /src --exclude=node_modules --exclude=.next -cf - . | tar -C /work -xf - && cd /work && npm ci --no-audit --no-fund && npx eslint src && npx tsc --noEmit"]

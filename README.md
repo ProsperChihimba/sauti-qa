@@ -46,7 +46,7 @@ The mock speech and LLM providers return a realistic Swahili customer-care dialo
 cp .env.example .env
 ```
 
-Edit `.env`: set `SECRET_KEY`, `POSTGRES_PASSWORD`, `MINIO_ROOT_PASSWORD`, `BOOTSTRAP_ADMIN_PASSWORD`, and for the demo:
+Edit `.env`: set `SECRET_KEY`, `POSTGRES_PASSWORD`, `BOOTSTRAP_ADMIN_PASSWORD`, and for the demo:
 
 ```
 SITE_ADDRESS=:80
@@ -95,7 +95,8 @@ Services:
 | `gpu-worker` | queue `gpu` (ASR + diarization), one model per process | one per GPU |
 | `beat` | schedules stuck-job recovery (5 min) and audio retention purge (hourly) | exactly 1 |
 | `inbox` | watches the SFTP inbox folder | exactly 1 |
-| `postgres`, `redis`, `minio` | data, queue, audio storage | 1 |
+| `postgres`, `redis` | data, queue | 1 |
+| `minio` (profile `s3`) | optional bundled S3 store; by default audio is on the `storage` volume | optional |
 | `sftp` (profile `sftp`) | optional SFTP endpoint for the recorder | optional |
 
 Capacity guide: one modern GPU transcribes roughly 30 to 100 hours of call audio per hour with `faster_whisper` (less with transformers checkpoints). Measure on your hardware with the benchmark script.
@@ -175,7 +176,7 @@ Recommended approach: score a few hundred calls with Claude, have analysts revie
 
 ## Going fully on-prem / offline
 
-1. Choose `ASR_PROVIDER` from `buzzasr`, `openchs`, `faster_whisper` or `hf_whisper`; `LLM_PROVIDER=openai` pointed at an internal vLLM/Ollama server; `STORAGE_BACKEND=s3` (MinIO in the stack).
+1. Choose `ASR_PROVIDER` from `buzzasr`, `openchs`, `faster_whisper` or `hf_whisper`; `LLM_PROVIDER=openai` pointed at an internal vLLM/Ollama server; audio on the local `storage` volume (default) or `STORAGE_BACKEND=s3` with the client's own S3-compatible store.
 2. Download the weights once, with internet access, into the `models` volume:
 
 ```bash
@@ -208,10 +209,10 @@ This is a technical checklist, not legal advice. Confirm obligations with the cl
 - [ ] If a cloud LLM is used even temporarily: written client approval, a data processing agreement, and a cross-border transfer assessment.
 - [ ] Register / notify with the Personal Data Protection Commission as required and record this processing in the client's records of processing.
 - [ ] Confirm the lawful basis and call-recording notice ("calls may be recorded for quality purposes") covers automated QA analysis.
-- [ ] Encrypt disks (LUKS) or volumes for Postgres, MinIO and backups; restrict MinIO console (bound to localhost by default).
+- [ ] Encrypt disks (LUKS) holding the Postgres, audio storage and backup volumes; if the bundled MinIO is used, keep its console on localhost (the default).
 - [ ] Set retention to the client's policy; agree what happens to transcripts and exports at contract end.
 - [ ] Use named accounts only, enforce strong passwords, remove the bootstrap admin from `.env`, review the audit log periodically.
-- [ ] Back up Postgres and MinIO to encrypted storage; test restores.
+- [ ] Back up Postgres and the audio storage to encrypted storage; test restores.
 - [ ] Spot-check redaction on real calls during pilot (redaction is rule-based; add patterns for new identifier formats in `backend/app/services/redaction/__init__.py`).
 - [ ] Handle data-subject requests: calls can be found by `external_id` or search and deleted by an admin (audio and data removed).
 
@@ -256,9 +257,20 @@ The script reports WER/CER before and after (same normaliser as the benchmark), 
 - **Processing jobs** page (admin): queued, running and failed stages per call, with error details and Retry. Workers ack late, so a crashed worker's job is redelivered; the `beat` service re-queues jobs with a stale heartbeat every 5 minutes (`JOB_STUCK_MINUTES`) and gives up after `JOB_MAX_ATTEMPTS`.
 - **Reprocess** a call from any stage: `POST /api/calls/{id}/reprocess?from=transcribe` (admin), e.g. after changing the ASR model.
 - **Health**: `/api/health` (liveness), `/api/ready` (database, Redis, configured providers).
-- **Backups**: `pg_dump` the database and mirror the MinIO bucket (`mc mirror`). Audio in MinIO is the large part; transcripts and scores are in Postgres.
+- **Backups**: `pg_dump` the database and back up the `storage` volume (or the S3 bucket when `STORAGE_BACKEND=s3`). Audio is the large part; transcripts and scores are in Postgres.
+- **Audio storage**: the default is the `storage` Docker volume. To use S3-compatible storage set `STORAGE_BACKEND=s3`, `S3_ENDPOINT_URL`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`; or start the bundled MinIO with `--profile s3` (MinIO no longer publishes images on Docker Hub; `MINIO_IMAGE` defaults to the official quay.io image).
 - **Create or reset an admin**: `docker compose ... exec api python scripts/create_admin.py --email you@example.co.tz`.
 - **Upgrades**: rebuild images; the API applies database migrations (Alembic) on start.
+
+## Checking a build (CI or any machine with Docker)
+
+`deploy/ci/run-all.sh` runs everything CI runs, needing only Docker:
+
+```bash
+deploy/ci/run-all.sh
+```
+
+It runs backend lint and tests (Postgres and Redis in containers), web lint and type-check, builds the images, starts the full stack with mock providers on port 80, and runs `deploy/ci/smoke-test.sh` through Caddy: login, calls ingested by upload and by the REST API, processed by the queued workers, auto-fail detection, audio playback and an Excel export. Use `--tests` or `--stack` to run one half. The same steps run on GitHub Actions (`.github/workflows/ci.yml`) for every pull request.
 
 ## Development
 

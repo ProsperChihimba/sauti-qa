@@ -32,3 +32,14 @@ def test_low_confidence_segments_are_dropped():
     kept, dropped = filter_hallucinations(segs)
     assert [s.text for s in kept] == ["katika miaka yote", "maneno ya kweli", "ndiyo"]
     assert [s.text for s in dropped] == ["Bei za", "Stamba na stamba"]
+
+
+def test_empty_env_values_mean_unset(monkeypatch):
+    """A fresh .env copied from .env.example has empty optional values."""
+    from app.config import Settings
+
+    for k in ("LLM_EFFORT", "ASR_MODEL", "LLM_MODEL", "HF_TOKEN", "ASR_OPENAI_BASE_URL", "REVIEW_SCORE_THRESHOLD"):
+        monkeypatch.setenv(k, "")
+    s = Settings()
+    assert s.llm_effort is None and s.asr_model is None and s.asr_openai_base_url is None
+    assert s.review_score_threshold == 80.0
